@@ -1,0 +1,128 @@
+#include "DHT.h"
+#include <Wire.h> //BH1750 IIC Mode 
+#include <math.h>
+#include <BH1750.h>
+
+int BH1750address = 0x23; //setting i2c address
+
+#define DHTPIN 7     // what digital pin we're connected to
+#define DHTTYPE DHT11   // DHT 11
+
+const int analogInPin = A0;          // Analog input pin that the potentiometer is attached to
+const int analogInPin_CO2 = A1;      // Analog input pin that the potentiometer is attached to
+const int ledPin = 13;               // LED connected to digital pin 13
+int H2OsensorPin = A10;              // Analog pin for H2O sensor
+int H2OsensorValue = 0;              // variable to store the value coming from the sensor
+int RelayPin1 = 2;                   //
+int RelayPin2 = 10;
+int CO2sensorValue = 0;        // value read from the sensor
+
+// variables will change:
+int buttonState1 = 0;         // variable for reading the pushbutton status
+int buttonState2 = 0;         // variable for reading the pushbutton status
+int buttonState3 = 0;         // variable for reading the pushbutton status
+int temperature_sensor = 23;
+int fanPulse = 8;
+unsigned long pulseDuration;
+
+BH1750 lightMeter;
+DHT dht(DHTPIN, DHTTYPE);
+
+byte buff[2];
+uint16_t on_counter;
+uint16_t off_counter;
+
+void setup() {
+  Wire.begin();
+  // initialize serial communications at 9600 bps:
+  Serial.begin(9600);
+  Serial1.begin(11200);
+  lightMeter.begin();
+  pinMode(ledPin, OUTPUT);      // sets the digital pin as output
+  pinMode(RelayPin1, OUTPUT);      // sets the digital pin as output
+  pinMode(RelayPin2, OUTPUT);      // sets the digital pin as output
+  pinMode(fanPulse, INPUT);
+  digitalWrite(fanPulse, HIGH);
+  dht.begin();
+}
+
+void loop() {
+  // read the state of the pushbutton value:
+  digitalWrite(ledPin, HIGH);   // sets the LED on
+  //delay(1000);
+  digitalWrite(ledPin, LOW);
+
+  // Reading temperature or humidity takes about 250 milliseconds!
+  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+  float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+
+  // Compute heat index in Celsius (isFahreheit = false)
+  float hic = dht.computeHeatIndex(t, h, false);
+
+  // read the analog in value:
+  CO2sensorValue = analogRead(analogInPin_CO2);
+
+  // read the value from the sensor:
+  H2OsensorValue = analogRead(H2OsensorPin);
+
+  if (on_counter <= 20)
+  {
+    Serial.println("Soil humidity is: 20%");
+    digitalWrite(RelayPin2, LOW);
+    on_counter++;
+    if (on_counter == 20)
+    {
+      off_counter = 0;
+    }
+  }
+  else if (off_counter <= 20)
+  {
+    Serial.println("Soil humidity is: 60%");
+
+    digitalWrite(RelayPin2, HIGH);
+    off_counter++;
+    if (off_counter == 20)
+    {
+      on_counter = 0;
+    }
+  }
+
+  if ((t < 25) || (h > 20)) {
+  }
+  if ((t > 25) || (h < 20))  {
+  }
+  uint16_t lux = lightMeter.readLightLevel();
+
+  if (lux < 400)
+  {
+    //turn on
+    digitalWrite(RelayPin1, LOW);
+  }
+  if (lux > 400)
+  {
+    //turn off
+    digitalWrite(RelayPin1, HIGH);
+  }
+
+  analogWrite(fanPulse, 250);
+  if (CO2sensorValue >= 750)
+  {
+    //start Fan
+  }
+  if (CO2sensorValue < 750)
+  {
+    //stop Fan
+  }
+  Serial.print("CO2 values is: ");
+  Serial.println(CO2sensorValue);
+  Serial.print("The temperature is: ");
+  Serial.println(temperature_sensor);
+  Serial.println("Water tank is full!");
+  Serial.print("Humidity is: ");
+  Serial.println("33%");
+  Serial.print("Light intensity is: ");
+  Serial.println(lux);
+  delay(300);
+}
